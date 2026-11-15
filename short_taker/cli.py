@@ -208,8 +208,10 @@ def main() -> None:
     s.add_argument("--license", default="creativeCommon", choices=["creativeCommon", "youtube", "any"])
     sort_args(s)
 
-    m = sub.add_parser("make", help="Créer des shorts depuis une ou plusieurs URLs")
+    m = sub.add_parser("make", help="Créer des shorts depuis une ou plusieurs URLs (YouTube ou autre site)")
     m.add_argument("urls", nargs="+")
+    m.add_argument("--prepare-only", action="store_true",
+                   help="Télécharger et transcrire seulement (Claude Code choisit ensuite les moments)")
     common(m)
 
     for name in ("run", "auto"):
