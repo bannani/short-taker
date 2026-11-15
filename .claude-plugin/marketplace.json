@@ -11,5 +11,6 @@
       "description": "Turn long videos into 9:16 shorts: Claude picks the best moments and cuts them with ffmpeg.",
       "version": "0.2.0"
     }
-  ]
+  ],
+  "description": "Short Taker: turn long YouTube videos into 9:16 shorts with Claude as the editor."
 }

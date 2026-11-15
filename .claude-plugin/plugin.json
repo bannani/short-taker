@@ -17,5 +17,6 @@
     "video",
     "ffmpeg",
     "clips"
-  ]
+  ],
+  "icon": ".claude-plugin/icon.png"
 }
