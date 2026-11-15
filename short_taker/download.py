@@ -10,6 +10,13 @@ from .models import VideoInfo
 
 def download(url: str, out_dir: Path, langs: list[str] | None = None,
              max_height: int = 1080) -> tuple[Path, Path | None, VideoInfo]:
+    """Télécharge via yt-dlp.
+
+    Si YouTube répond « Sign in to confirm you're not a bot » (fréquent depuis un serveur / VPN),
+    passe des cookies : SHORT_TAKER_COOKIES_FROM_BROWSER=chrome (ou firefox, edge…)
+    ou SHORT_TAKER_COOKIES=/chemin/cookies.txt dans .env.
+    """
+    import os
     out_dir.mkdir(parents=True, exist_ok=True)
     langs = langs or ["fr", "en"]
     opts = {
@@ -24,6 +31,10 @@ def download(url: str, out_dir: Path, langs: list[str] | None = None,
         "noprogress": True,
         "ignoreerrors": False,
     }
+    if os.environ.get("SHORT_TAKER_COOKIES_FROM_BROWSER"):
+        opts["cookiesfrombrowser"] = (os.environ["SHORT_TAKER_COOKIES_FROM_BROWSER"],)
+    if os.environ.get("SHORT_TAKER_COOKIES"):
+        opts["cookiefile"] = os.environ["SHORT_TAKER_COOKIES"]
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
 

@@ -46,6 +46,7 @@ Then in Claude Code: `/short-taker:run startup founders` (autonomous, works **wi
 ```bash
 git clone https://github.com/bannani/short-taker && cd short-taker
 # ffmpeg is required: apt install ffmpeg / brew install ffmpeg / winget install ffmpeg
+# deno is required by yt-dlp for YouTube: https://docs.deno.com/runtime/getting_started/installation/
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # set ANTHROPIC_API_KEY (and YOUTUBE_API_KEY, recommended)
@@ -111,6 +112,12 @@ output/
 ```
 
 On Windows, create a daily task in Task Scheduler running the same command. Thanks to `history.json`, each run picks new videos.
+
+### Troubleshooting
+
+- **"Sign in to confirm you're not a bot"**: YouTube blocks downloads from servers, datacenters and some VPNs. Run Short Taker from your own connection, or pass your browser cookies: `SHORT_TAKER_COOKIES_FROM_BROWSER=chrome` (or `SHORT_TAKER_COOKIES=cookies.txt`) in `.env`.
+- **"No supported JavaScript runtime"**: install [deno](https://docs.deno.com/runtime/getting_started/installation/), yt-dlp needs it for YouTube.
+- **Other sites**: `make` accepts any URL yt-dlp supports (Vimeo, Wikimedia Commons, …).
 
 Transcript sources, in order: YouTube captions (json3, word-level timing) → local Whisper (`faster-whisper`).
 
