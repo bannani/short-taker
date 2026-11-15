@@ -29,6 +29,7 @@ Then read the report in `output/runs/*.md` and summarize it (shorts made, scores
    ```json
    {"moments": [{"start": 123.4, "end": 168.9, "title": "…", "hook": "…", "reason": "…", "score": 8, "hashtags": ["#…"], "face_x": 0.45}]}
    ```
+   For clips that rely on B-roll (screenshots, slides), add `"mode": "blur"` to the moment.
 5. **Cut**: `python -m short_taker.cut_from_json output/<id>` (default `--mode smart`: follows the face
    with OpenCV, falls back on `face_x`, then on a blurred background).
 6. **Check**: grab one frame per short and look at it. Fix and re-cut if needed.
