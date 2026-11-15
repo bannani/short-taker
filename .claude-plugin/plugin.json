@@ -1,0 +1,21 @@
+{
+  "name": "short-taker",
+  "version": "0.1.0",
+  "description": "Turn long videos into 9:16 shorts: Claude reads the transcript, picks the best moments and cuts them with ffmpeg.",
+  "author": {
+    "name": "Mohamed Fares Bannani",
+    "url": "https://github.com/bannani"
+  },
+  "homepage": "https://github.com/bannani/short-taker",
+  "repository": "https://github.com/bannani/short-taker",
+  "license": "MIT",
+  "keywords": [
+    "shorts",
+    "youtube",
+    "tiktok",
+    "reels",
+    "video",
+    "ffmpeg",
+    "clips"
+  ]
+}
