@@ -44,11 +44,25 @@ jobs:
           done
           ls -la /tmp/output/sources
 
+      - name: Whisper fallback (no subtitles)
+        env:
+          WHISPER_MODEL: tiny
+        run: |
+          f=$(ls /tmp/output/sources/*.mp4 | head -1)
+          ffmpeg -v error -y -i "$f" -t 60 -c copy /tmp/clip60.mp4
+          python - <<'PY' 2>&1 | tee /tmp/whisper.log
+          from pathlib import Path
+          from short_taker import transcribe
+          segs = transcribe.from_whisper(Path("/tmp/clip60.mp4"), "en")
+          print(len(segs), "segments")
+          for s in segs[:5]: print(f"[{s.start:.1f}-{s.end:.1f}] {s.text} ({len(s.words)} mots horodatés)")
+          PY
+
       - name: Publish results on branch e2e-results
         if: always()
         run: |
           mkdir -p /tmp/res && cd /tmp/res
-          cp /tmp/search.log /tmp/run.log /tmp/make.log . 2>/dev/null || true
+          cp /tmp/search.log /tmp/run.log /tmp/make.log /tmp/whisper.log . 2>/dev/null || true
           [ -d /tmp/output ] && cp -r /tmp/output . || true
           git init -q -b e2e-results
           git config user.name "github-actions" && git config user.email "actions@github.com"
