@@ -7,6 +7,15 @@ description: Turn a video uploaded to the chat into vertical 9:16 shorts (YouTub
 
 You are the editor. From a video and its timestamped transcript, you pick the best moments and deliver 1080x1920 shorts ready to publish. Reply in the user's language.
 
+## Theme mode: "I find, you upload" (the user gives a theme, no video)
+YouTube can't be downloaded from the Claude.ai sandbox, but the web can be searched. Three light round trips:
+1. **Find**: with WebSearch, look for long YouTube videos (8-60 min) on the theme with lots of talking (analysis, podcasts, interviews, debates), as popular as possible, Creative Commons preferred. Propose 3 (title, channel, duration, views if known, link) and recommend one.
+2. **Subtitles**: ask the user to run this on their computer and upload the .srt:
+   `yt-dlp --skip-download --write-auto-subs --sub-langs en --convert-subs srt -o "%(id)s" <URL>` (adapt the language).
+3. **Pick**: parse the .srt (Parse step below) and pick the moments (step 3). Then give ONE command that downloads only those clips in good quality:
+   `yt-dlp -f "bv*[height<=1080]+ba/b" --merge-output-format mp4 --download-sections "*START-END" --download-sections "*START-END" --force-keyframes-at-cuts -o "%(id)s_%(section_start)d.%(ext)s" <URL>` (one --download-sections per moment, seconds).
+4. **Cut**: each uploaded clip starts at its moment's START. For each, write a moments.json with start=0 and end=END-START and a shifted transcript (subtract START from segment times, keep the segments inside the clip), then run `cut` (step 4), check (step 5) and deliver (step 6).
+
 ## Sandbox limits (read first)
 - **YouTube is usually unreachable** from the Claude.ai sandbox (yt-dlp and arbitrary network calls are blocked). Do not try to download. If the user only gives a URL, ask them to upload:
   1. the video file (.mp4). Upload size is limited, so suggest 720p or a shorter video;
