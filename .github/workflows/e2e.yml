@@ -1,6 +1,6 @@
 name: E2E (YouTube side)
 
-# Partie YouTube réelle (recherche, classement, téléchargement, transcription, énergie audio).
+# Partie YouTube réelle sur un thème : recherche, classement par popularité, choix, téléchargement, transcription.
 # Le résultat est publié sur la branche e2e-results pour que l'agent fasse la suite.
 on:
   push:
@@ -14,55 +14,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      THEME: "entrepreneur interview startup story"
+      THEME: "gta6"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
+      - uses: denoland/setup-deno@v2   # moteur JS demandé par yt-dlp pour YouTube
+        with: { deno-version: v2.x }
       - name: Install
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
           pip install -q -r requirements.txt
-      - name: Search (popularity, Creative Commons)
-        run: python -m short_taker search "$THEME" -n 10 --min-views 1000 2>&1 | tee /tmp/search.log
-      - name: Run (prepare-only)
-        run: |
-          python -m short_taker run "$THEME" --videos 1 --prepare-only \
-            --min-video 5 --max-video 25 --min-views 1000 --langs en,fr --max-height 480 -o /tmp/output 2>&1 | tee /tmp/run.log
-      - name: Real talking video (Wikimedia Commons, CC) — prepare-only
+      - name: Search — Creative Commons, popularity
+        run: python -m short_taker search "$THEME" -n 15 --min-views 1000 2>&1 | tee /tmp/search_cc.log
+      - name: Search — any license, popularity (for comparison only, nothing downloaded)
+        run: python -m short_taker search "$THEME" -n 15 --license any 2>&1 | tee /tmp/search_any.log
+      - name: Run (prepare-only, Creative Commons)
         env:
           WHISPER_MODEL: base
         run: |
-          python -m short_taker make "https://commons.wikimedia.org/wiki/File:Ward_Cunningham,_Inventor_of_the_Wiki.webm" \
-            --prepare-only --langs en --max-height 480 -o /tmp/output 2>&1 | tee /tmp/make.log
-          # vidéo source allégée pour pouvoir la publier sur la branche de résultats (< 100 Mo)
-          for f in /tmp/output/sources/*.*; do
-            case "$f" in *.mp4|*.webm|*.mkv)
-              ffmpeg -v error -y -i "$f" -vf "scale=-2:480" -c:v libx264 -preset veryfast -crf 30 -c:a aac -b:a 96k "${f%.*}.light.mp4"
-              mv "${f%.*}.light.mp4" "${f%.*}.mp4"; [ "$f" != "${f%.*}.mp4" ] && rm -f "$f";;
-            esac
+          python -m short_taker run "$THEME" --videos 1 --prepare-only --min-video 4 --max-video 40 \
+            --min-views 1000 --langs fr,en --max-height 480 -o /tmp/output 2>&1 | tee /tmp/run.log
+          for f in /tmp/output/sources/*.mp4; do [ -f "$f" ] || continue
+            ffmpeg -v error -y -i "$f" -vf "scale=-2:480" -c:v libx264 -preset veryfast -crf 30 -c:a aac -b:a 96k /tmp/light.mp4 && mv /tmp/light.mp4 "$f"
           done
-          ls -la /tmp/output/sources
-
-      - name: Whisper fallback (no subtitles)
-        env:
-          WHISPER_MODEL: tiny
-        run: |
-          f=$(ls /tmp/output/sources/*.mp4 | head -1)
-          ffmpeg -v error -y -i "$f" -t 60 -c copy /tmp/clip60.mp4
-          python - <<'PY' 2>&1 | tee /tmp/whisper.log
-          from pathlib import Path
-          from short_taker import transcribe
-          segs = transcribe.from_whisper(Path("/tmp/clip60.mp4"), "en")
-          print(len(segs), "segments")
-          for s in segs[:5]: print(f"[{s.start:.1f}-{s.end:.1f}] {s.text} ({len(s.words)} mots horodatés)")
-          PY
-
       - name: Publish results on branch e2e-results
         if: always()
         run: |
           mkdir -p /tmp/res && cd /tmp/res
-          cp /tmp/search.log /tmp/run.log /tmp/make.log /tmp/whisper.log . 2>/dev/null || true
+          cp /tmp/*.log . 2>/dev/null || true
           [ -d /tmp/output ] && cp -r /tmp/output . || true
           git init -q -b e2e-results
           git config user.name "github-actions" && git config user.email "actions@github.com"
