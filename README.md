@@ -7,7 +7,7 @@ python -m short_taker run "startup founders" --videos 2 -c 3
 ```
 
 ```
-theme ─▶ YouTube search ─▶ Claude picks videos ─▶ download + transcript ─▶ audio energy 🔊
+theme ─▶ YouTube search, most viewed & liked first ─▶ Claude picks videos ─▶ download + transcript ─▶ audio energy 🔊
                                                                            │
 report.md ◀─ 9:16 shorts ◀─ face-tracking crop ◀─ Claude watches frames ◀─ Claude picks moments
 ```
@@ -74,6 +74,8 @@ python -m short_taker make URL --instructions "favor the funny moments"
 | `--min / --max` | 20 / 59 | short duration (s) |
 | `--mode` | `smart` | `smart` = follows the face, `blur` = full frame over blurred background, `crop` = centered crop |
 | `--no-vision` | | skip frames + audio analysis (cheaper, transcript only) |
+| `--sort` (run, search) | `popular` | `popular` = views + likes, `views`, `likes`, `relevance` |
+| `--min-views` (run, search) | 0 | skip videos below this view count |
 | `--videos` (run) | 2 | long videos to process |
 | `--min-video / --max-video` (run) | 8 / 90 | source video duration (min) |
 | `--prepare-only` (run) | | search, download, transcribe only: let Claude Code pick the moments |
@@ -95,7 +97,7 @@ output/
 
 ### How Claude "watches" a video
 
-1. **Picks the videos**: from ~10 search results, Claude keeps the ones most likely to give good shorts (lots of talking, strong opinions, anecdotes, on-theme).
+1. **Picks the videos**: up to 50 on-theme results are ranked by popularity (views + likes + like rate, log scale), then Claude keeps, among the most popular, the ones most likely to give good shorts (lots of talking, strong opinions, anecdotes, on-theme).
 2. **Reads**: the full timestamped transcript, with 🔊 tags on loud moments (laughs, raised voices, applause) from the audio track.
 3. **Proposes** twice as many candidate moments as needed.
 4. **Watches**: 4 key frames per candidate are sent to Claude (vision). It drops visually weak clips, re-scores the rest and says where the subject is.

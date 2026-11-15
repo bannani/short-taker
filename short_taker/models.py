@@ -11,11 +11,22 @@ class VideoInfo:
     url: str = ""
     duration: float = 0.0  # secondes
     views: int = 0
+    likes: int = 0
+    published: str = ""  # date ISO de publication
     license: str = ""  # "creativeCommon" | "youtube" | ""
     description: str = ""
 
+    @property
+    def popularity(self) -> float:
+        """Score de popularité : vues + likes (échelle log) + bonus taux de like."""
+        import math
+        like_rate = (self.likes / self.views) if self.views else 0.0
+        return round(math.log10(self.views + 1) + math.log10(self.likes + 1) + min(like_rate * 100, 10) * 0.2, 3)
+
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        d["popularity"] = self.popularity
+        return d
 
 
 @dataclass

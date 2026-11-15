@@ -37,10 +37,11 @@ def save_history(out: str, h: dict) -> None:
 
 # ---------- commandes ----------
 def cmd_search(a) -> list:
-    vids = search.search(a.query, a.n, license=a.license)
+    vids = search.search(a.query, a.n, license=a.license, sort=a.sort, min_views=a.min_views)
     for i, v in enumerate(vids, 1):
         m, s = divmod(int(v.duration), 60)
-        print(f"{i:>2}. [{m}:{s:02d}] {v.title} — {v.channel} ({v.views:,} vues, licence: {v.license or '?'})\n    {v.url}")
+        print(f"{i:>2}. [{m}:{s:02d}] {v.title} — {v.channel}\n    👁 {v.views:,} vues · 👍 {v.likes:,} likes · "
+              f"licence: {v.license or '?'}\n    {v.url}")
     return vids
 
 
@@ -116,7 +117,8 @@ def cmd_run(a) -> None:
     history = load_history(a.out)
     print(f"🔎 Recherche de vidéos sur « {a.query} »…")
     candidates = search.search(a.query, max_results=max(a.videos * 5, 10), license=a.license,
-                               min_duration=a.min_video * 60, max_duration=a.max_video * 60)
+                               min_duration=a.min_video * 60, max_duration=a.max_video * 60,
+                               sort=a.sort, min_views=a.min_views)
     fresh = [v for v in candidates if v.id not in history]
     print(f"   {len(candidates)} trouvées, {len(fresh)} jamais traitées.")
     if not fresh:
@@ -126,7 +128,7 @@ def cmd_run(a) -> None:
     picks = select.pick_videos(a.query, fresh, a.videos)
     print("🎯 Vidéos retenues :")
     for v, why in picks:
-        print(f"   • {v.title} — {v.channel}\n     {why}")
+        print(f"   • {v.title} — {v.channel} (👁 {v.views:,} · 👍 {v.likes:,})\n     {why}")
 
     all_shorts, errors = [], []
     for v, why in picks:
@@ -157,7 +159,8 @@ def write_report(a, picks, shorts, errors) -> Path:
     lines = [f"# Short Taker — « {a.query} »", "", f"_{datetime.now():%d/%m/%Y %H:%M}_", "",
              "## Vidéos analysées", ""]
     for v, why in picks:
-        lines.append(f"- [{v.title}]({v.url}) — {v.channel} (licence : {v.license or '?'}) : {why}")
+        lines.append(f"- [{v.title}]({v.url}) — {v.channel} — 👁 {v.views:,} vues · 👍 {v.likes:,} likes "
+                     f"(licence : {v.license or '?'}) : {why}")
     lines += ["", "## Shorts", "", "| # | Fichier | Note | Titre | Source |", "|---|---|---|---|---|"]
     for i, s in enumerate(sorted(shorts, key=lambda s: s["score"], reverse=True), 1):
         src = f"[{s['video']['channel']}]({s['video']['url']}&t={int(s['start'])})"
@@ -192,10 +195,16 @@ def main() -> None:
         sp.add_argument("--dry-run", action="store_true", help="Analyse seulement, sans découper")
         sp.add_argument("-o", "--out", default=os.environ.get("SHORT_TAKER_OUT", "output"))
 
+    def sort_args(sp):
+        sp.add_argument("--sort", choices=["popular", "views", "likes", "relevance"], default="popular",
+                        help="Classement des vidéos : popular = vues + likes (défaut)")
+        sp.add_argument("--min-views", type=int, default=0, help="Ignorer les vidéos sous ce nombre de vues")
+
     s = sub.add_parser("search", help="Chercher des vidéos")
     s.add_argument("query")
     s.add_argument("-n", type=int, default=10)
     s.add_argument("--license", default="creativeCommon", choices=["creativeCommon", "youtube", "any"])
+    sort_args(s)
 
     m = sub.add_parser("make", help="Créer des shorts depuis une ou plusieurs URLs")
     m.add_argument("urls", nargs="+")
@@ -208,6 +217,7 @@ def main() -> None:
         r.add_argument("--min-video", type=float, default=8, help="Durée min des vidéos sources (min)")
         r.add_argument("--max-video", type=float, default=90, help="Durée max des vidéos sources (min)")
         r.add_argument("--license", default="creativeCommon", choices=["creativeCommon", "youtube", "any"])
+        sort_args(r)
         r.add_argument("--prepare-only", action="store_true",
                        help="Chercher, télécharger et transcrire seulement (Claude Code choisit ensuite les moments)")
         common(r)

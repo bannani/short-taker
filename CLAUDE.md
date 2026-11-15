@@ -16,7 +16,7 @@ Then read the report in `output/runs/*.md` and summarize it (shorts made, scores
 
 1. **Search, pick, download, transcribe**:
    `python -m short_taker run "<theme>" --videos 2 --prepare-only`
-   (picks the most viewed candidates; Creative Commons by default). For each video it writes
+   (ranks results by popularity — views + likes — and keeps the top ones; Creative Commons by default; `--sort views|likes|relevance`, `--min-views N`). For each video it writes
    `output/<id>/transcript.txt`, with audio-energy tags: 🔊 = loud moment (laughs, raised voice, applause), 🔈 = calm.
 2. **Read** each `transcript.txt` in full and pick 2× the number of shorts wanted as candidates.
    Criteria: hook in the first 3 seconds, makes sense alone, full arc (hook → development → payoff),
