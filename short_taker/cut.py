@@ -67,8 +67,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     path.write_text("".join(lines), encoding="utf-8")
 
 
-def _filter(mode: str, ass: Path | None) -> str:
-    if mode == "crop":  # recadrage centré : idéal quand la personne est au centre
+def _filter(mode: str, ass: Path | None, face_x: float | None = None) -> str:
+    if mode == "smart" and face_x is not None:  # recadrage centré sur le sujet (visage)
+        fx = min(max(face_x, 0.0), 1.0)
+        vf = (f"[0:v]crop=ih*9/16:ih:x='clip({fx:.3f}*iw-ih*9/32\\,0\\,iw-ih*9/16)':y=0,"
+              f"scale={W}:{H},setsar=1[v]")
+    elif mode == "crop":  # recadrage centré : idéal quand la personne est au centre
         vf = f"[0:v]crop=ih*9/16:ih,scale={W}:{H},setsar=1[v]"
     else:  # "blur" : vidéo entière au centre + fond flouté (marche avec tout)
         vf = (f"[0:v]split[a][b];"
@@ -88,7 +92,22 @@ def slugify(s: str, n: int = 50) -> str:
 
 def cut(video: Path, moment: Moment, segments: list[Segment], out: Path,
         mode: str = "blur", subtitles: bool = True) -> Path:
+    """mode : "blur" (fond flouté), "crop" (centre), "smart" (suit le sujet, repli sur blur)."""
     out.parent.mkdir(parents=True, exist_ok=True)
+    face_x = None
+    if mode in ("smart", "crop"):
+        from . import signals
+        w, h, _ = signals.probe(video)
+        if w / h < 0.6:  # source déjà verticale : pas de recadrage horizontal possible
+            mode = "blur"
+        elif mode == "smart":
+            face_x = signals.face_center(video, moment.start, moment.end)
+            if face_x is None:
+                face_x = moment.face_x  # avis de Claude après avoir vu les images
+            if face_x is None:
+                mode = "blur"
+            else:
+                moment.face_x = face_x
     ass = None
     if subtitles:
         ass = out.with_suffix(".ass")
@@ -96,7 +115,7 @@ def cut(video: Path, moment: Moment, segments: list[Segment], out: Path,
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-ss", f"{moment.start:.3f}", "-to", f"{moment.end:.3f}", "-i", str(video),
-        "-filter_complex", _filter(mode, ass), "-map", "[v]", "-map", "0:a?",
+        "-filter_complex", _filter(mode, ass, face_x), "-map", "[v]", "-map", "0:a?",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", "30",
         "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out),
     ]

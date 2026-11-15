@@ -4,3 +4,5 @@ requests>=2.31
 python-dotenv>=1.0
 # Optionnel : transcription locale si la vidéo n'a pas de sous-titres
 faster-whisper>=1.0
+numpy>=1.26
+opencv-python-headless>=4.9,<5  # la v5 ne fournit plus les cascades de visages

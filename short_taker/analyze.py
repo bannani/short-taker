@@ -55,8 +55,10 @@ def _fmt(t: float) -> str:
     return f"{int(m):02d}:{s:05.2f}"
 
 
-def _transcript_text(segments: list[Segment]) -> str:
-    return "\n".join(f"[{s.start:.2f}-{s.end:.2f}] ({_fmt(s.start)}) {s.text}" for s in segments)
+def _transcript_text(segments: list[Segment], energy: list[str] | None = None) -> str:
+    energy = energy or [""] * len(segments)
+    return "\n".join(f"[{s.start:.2f}-{s.end:.2f}] ({_fmt(s.start)}){' ' + e if e else ''} {s.text}"
+                     for s, e in zip(segments, energy))
 
 
 def _snap(moment: Moment, segments: list[Segment], min_d: float, max_d: float) -> Moment | None:
@@ -80,7 +82,8 @@ def _snap(moment: Moment, segments: list[Segment], min_d: float, max_d: float) -
 
 def find_moments(segments: list[Segment], video: VideoInfo, count: int = 3,
                  min_duration: float = 20, max_duration: float = 59,
-                 language: str = "français", extra_instructions: str = "") -> list[Moment]:
+                 language: str = "français", extra_instructions: str = "",
+                 energy: list[str] | None = None) -> list[Moment]:
     client = anthropic.Anthropic()
     model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5")
 
@@ -92,9 +95,10 @@ Description (extrait) :
 Trouve les {count} meilleurs moments pour des shorts de {int(min_duration)} à {int(max_duration)} secondes.
 Écris title, hook et reason en {language}.
 {extra_instructions}
+{"Les segments marqués 🔊 ont une énergie audio forte (rires, voix qui monte, applaudissements), 🔈 sont calmes : c'est un indice, pas une règle." if energy else ""}
 
 Transcription horodatée ([début-fin] en secondes) :
-{_transcript_text(segments)}"""
+{_transcript_text(segments, energy)}"""
 
     resp = client.messages.create(
         model=model,
@@ -116,3 +120,77 @@ Transcription horodatée ([début-fin] en secondes) :
             moments.append(mo)
     moments.sort(key=lambda m: m.score, reverse=True)
     return moments[:count]
+
+
+REVIEW_TOOL = {
+    "name": "review_moments",
+    "description": "Verdict final sur chaque moment candidat après avoir regardé les images.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "reviews": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "index": {"type": "integer", "description": "Numéro du candidat"},
+                        "keep": {"type": "boolean"},
+                        "score": {"type": "integer", "minimum": 1, "maximum": 10,
+                                  "description": "Note finale (texte + visuel)"},
+                        "subject_x": {"type": "number", "minimum": 0, "maximum": 1,
+                                      "description": "Position horizontale du sujet principal (0 = gauche, 1 = droite)"},
+                        "visual_note": {"type": "string"},
+                    },
+                    "required": ["index", "keep", "score", "subject_x", "visual_note"],
+                },
+            }
+        },
+        "required": ["reviews"],
+    },
+}
+
+
+def review_with_vision(video_path, candidates: list[Moment], segments: list[Segment], work_dir,
+                       frames_per_moment: int = 4, language: str = "français") -> list[Moment]:
+    """2e passe : Claude « regarde » des images clés de chaque candidat et tranche."""
+    import base64
+    from pathlib import Path
+
+    from . import signals
+
+    content: list[dict] = [{"type": "text", "text": (
+        "Tu es monteur de shorts. Pour chaque moment candidat, tu as l'extrait de transcription "
+        "et quelques images clés. Juge l'intérêt VISUEL pour un short vertical : visage visible et expressif, "
+        "action, image lisible une fois recadrée en 9:16. Rejette (keep=false) les passages visuellement "
+        "inexploitables (écran noir, slides illisibles, plan trop large sans sujet) sauf si le texte est exceptionnel. "
+        f"Donne la position horizontale du sujet principal pour le recadrage. Réponds en {language}.")}]
+    for i, m in enumerate(candidates):
+        excerpt = " ".join(s.text for s in segments if s.end > m.start and s.start < m.end)[:1200]
+        content.append({"type": "text", "text": f"\n--- Candidat {i} : « {m.title} » ({m.start:.1f}s → {m.end:.1f}s, "
+                                                f"note texte {m.score}/10)\nTranscription : {excerpt}"})
+        times = [m.start + (m.end - m.start) * (k + 0.5) / frames_per_moment for k in range(frames_per_moment)]
+        for f in signals.extract_frames(Path(video_path), times, Path(work_dir) / "frames" / f"c{i}"):
+            content.append({"type": "image", "source": {
+                "type": "base64", "media_type": "image/jpeg",
+                "data": base64.b64encode(f.read_bytes()).decode()}})
+
+    resp = anthropic.Anthropic().messages.create(
+        model=os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5"),
+        max_tokens=3000,
+        tools=[REVIEW_TOOL],
+        tool_choice={"type": "tool", "name": "review_moments"},
+        messages=[{"role": "user", "content": content}],
+    )
+    reviews = next(b for b in resp.content if b.type == "tool_use").input.get("reviews", [])
+    kept = []
+    for r in reviews:
+        i = r.get("index")
+        if not isinstance(i, int) or not 0 <= i < len(candidates) or not r.get("keep"):
+            continue
+        m = candidates[i]
+        m.score = int(r.get("score", m.score))
+        m.face_x = float(r.get("subject_x", 0.5))
+        m.visual_note = r.get("visual_note", "")
+        kept.append(m)
+    kept.sort(key=lambda m: m.score, reverse=True)
+    return kept

@@ -42,6 +42,8 @@ class Moment:
     reason: str
     score: int  # 1-10
     hashtags: list[str] = field(default_factory=list)
+    face_x: float | None = None  # position horizontale du sujet (0-1) pour le recadrage
+    visual_note: str = ""  # avis de Claude après avoir regardé les images
 
     @property
     def duration(self) -> float:

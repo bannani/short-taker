@@ -1,12 +1,15 @@
 {
   "name": "short-taker",
-  "owner": { "name": "Mohamed Fares Bannani", "url": "https://github.com/bannani" },
+  "owner": {
+    "name": "Mohamed Fares Bannani",
+    "url": "https://github.com/bannani"
+  },
   "plugins": [
     {
       "name": "short-taker",
       "source": "./",
       "description": "Turn long videos into 9:16 shorts: Claude picks the best moments and cuts them with ffmpeg.",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }

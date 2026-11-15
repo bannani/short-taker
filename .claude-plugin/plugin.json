@@ -1,6 +1,6 @@
 {
   "name": "short-taker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turn long videos into 9:16 shorts: Claude reads the transcript, picks the best moments and cuts them with ffmpeg.",
   "author": {
     "name": "Mohamed Fares Bannani",

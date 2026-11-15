@@ -1,12 +1,15 @@
 # 🎬 Short Taker
 
-**Turn long videos into vertical shorts, with Claude as the editor.**
-Claude reads the timestamped transcript, picks the moments that work as standalone shorts (strong hook, full arc, clean sentence boundaries), and ffmpeg cuts them to 1080x1920 with a hook title and word-by-word captions.
+**Give it a theme, get shorts.** Short Taker searches YouTube for long videos, lets Claude pick the best ones, *watches* them (transcript + audio energy + key frames), and cuts the best moments into 1080x1920 shorts that follow the speaker's face, with a hook title and word-by-word captions.
+
+```bash
+python -m short_taker run "startup founders" --videos 2 -c 3
+```
 
 ```
-YouTube / your video ──▶ transcript ──▶ Claude picks moments ──▶ ffmpeg 9:16 + captions ──▶ 01_title.mp4
-                        (YT captions,    start/end, title,
-                         or Whisper)     hook, score, hashtags
+theme ─▶ YouTube search ─▶ Claude picks videos ─▶ download + transcript ─▶ audio energy 🔊
+                                                                           │
+report.md ◀─ 9:16 shorts ◀─ face-tracking crop ◀─ Claude watches frames ◀─ Claude picks moments
 ```
 
 Three ways to use it:
@@ -15,7 +18,7 @@ Three ways to use it:
 |---|---|---|---|
 | **1. Claude.ai skill** | Claude chat (web, desktop, mobile) | Nothing, Claude is the editor | ❌ upload the video + transcript |
 | **2. Claude Code plugin** | Your terminal | Claude Code, ffmpeg, Python | ✅ |
-| **3. Standalone CLI** | Your terminal | ffmpeg, Python, Anthropic API key | ✅ fully automatic |
+| **3. Standalone CLI** | Your terminal | ffmpeg, Python, Anthropic API key | ✅ fully autonomous |
 
 ---
 
@@ -36,7 +39,7 @@ Three ways to use it:
 /plugin install short-taker@short-taker
 ```
 
-Then in Claude Code: *"Make 3 shorts from https://www.youtube.com/watch?v=…"*. Clone the repo too if you want Claude to use the CLI below for searching and downloading (see [`CLAUDE.md`](CLAUDE.md)).
+Then in Claude Code: `/short-taker:run startup founders` (autonomous, works **without** an API key: Claude Code is the agent and looks at the frames itself), or *"Make 3 shorts from https://www.youtube.com/watch?v=…"*. Clone the repo too if you want Claude to use the CLI below for searching and downloading (see [`CLAUDE.md`](CLAUDE.md)).
 
 ## 3. Standalone CLI
 
@@ -49,14 +52,14 @@ cp .env.example .env   # set ANTHROPIC_API_KEY (and YOUTUBE_API_KEY, recommended
 ```
 
 ```bash
-# Search (Creative Commons only by default, needs YOUTUBE_API_KEY)
+# 🤖 Autonomous: theme → search → Claude picks 2 videos → watches them → 3 shorts each → report
+python -m short_taker run "startup founders" --videos 2 -c 3
+
+# Search only (Creative Commons only by default, needs YOUTUBE_API_KEY)
 python -m short_taker search "startup founder interview" -n 10
 
 # Shorts from a URL
 python -m short_taker make "https://www.youtube.com/watch?v=XXXX" -c 3
-
-# Fully automatic: search + 2 videos + 3 shorts each
-python -m short_taker auto "cooking tips" --videos 2 -c 3
 
 # See what Claude would pick, without cutting
 python -m short_taker make URL --dry-run
@@ -69,7 +72,11 @@ python -m short_taker make URL --instructions "favor the funny moments"
 |---|---|---|
 | `-c, --count` | 3 | shorts per video |
 | `--min / --max` | 20 / 59 | short duration (s) |
-| `--mode` | `blur` | `blur` = full frame over blurred background, `crop` = centered crop |
+| `--mode` | `smart` | `smart` = follows the face, `blur` = full frame over blurred background, `crop` = centered crop |
+| `--no-vision` | | skip frames + audio analysis (cheaper, transcript only) |
+| `--videos` (run) | 2 | long videos to process |
+| `--min-video / --max-video` (run) | 8 / 90 | source video duration (min) |
+| `--prepare-only` (run) | | search, download, transcribe only: let Claude Code pick the moments |
 | `--langs` | `fr,en` | caption languages, by priority |
 | `--no-subs` | | no burned-in captions |
 | `--license` | `creativeCommon` | `creativeCommon`, `youtube`, `any` |
@@ -82,7 +89,26 @@ output/
   <id>/transcript.json      transcript (cached)
   <id>/moments.json         Claude's picks: title, hook, reason, score, hashtags
   <id>/01_my-title.mp4      the shorts
+  runs/<date>_<theme>.md    run report: sources, scores, titles, hashtags, credit lines
+  history.json              videos already processed (never processed twice)
 ```
+
+### How Claude "watches" a video
+
+1. **Picks the videos**: from ~10 search results, Claude keeps the ones most likely to give good shorts (lots of talking, strong opinions, anecdotes, on-theme).
+2. **Reads**: the full timestamped transcript, with 🔊 tags on loud moments (laughs, raised voices, applause) from the audio track.
+3. **Proposes** twice as many candidate moments as needed.
+4. **Watches**: 4 key frames per candidate are sent to Claude (vision). It drops visually weak clips, re-scores the rest and says where the subject is.
+5. **Crops**: OpenCV finds the face to center the 9:16 crop (falls back on Claude's estimate, then on a blurred background).
+
+### Run it every day
+
+```bash
+# Linux / macOS (crontab -e): every day at 7:00
+0 7 * * * cd /path/to/short-taker && .venv/bin/python -m short_taker run "startup founders" --videos 2 -c 3 >> output/cron.log 2>&1
+```
+
+On Windows, create a daily task in Task Scheduler running the same command. Thanks to `history.json`, each run picks new videos.
 
 Transcript sources, in order: YouTube captions (json3, word-level timing) → local Whisper (`faster-whisper`).
 

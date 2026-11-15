@@ -24,13 +24,14 @@ def _iso_duration_to_seconds(iso: str) -> float:
 
 
 def search_api(query: str, max_results: int = 10, license: str = "creativeCommon",
-               duration: str = "medium", lang: str | None = None) -> list[VideoInfo]:
+               duration: str = "any", lang: str | None = None) -> list[VideoInfo]:
     key = os.environ["YOUTUBE_API_KEY"]
     params = {
         "key": key, "part": "snippet", "q": query, "type": "video",
-        "maxResults": min(max_results, 50), "videoDuration": duration,
-        "order": "relevance",
+        "maxResults": min(max_results, 50), "order": "relevance",
     }
+    if duration != "any":  # short (<4 min), medium (4-20), long (>20)
+        params["videoDuration"] = duration
     if license and license != "any":
         params["videoLicense"] = license
     if lang:
