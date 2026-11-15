@@ -16,6 +16,14 @@ You need a clone of https://github.com/bannani/short-taker with its dependencies
 - Check `ffmpeg -version`. If it is missing, tell the user how to install it (apt / brew / winget) and stop.
 - `.env`: copy `.env.example` if missing. `YOUTUBE_API_KEY` is strongly recommended (likes + Creative Commons filter). Don't ask for keys the user doesn't have: work with what's there.
 
+## If YouTube can't be reached (Claude.ai sandbox, servers, VPN)
+
+YouTube often blocks downloads from servers ("Sign in to confirm you're not a bot") and the Claude.ai sandbox
+blocks it entirely. If the search or the download fails for that reason, don't retry and don't try to bypass it:
+say so in one sentence, then switch to the `short-taker` skill workflow. Ask the user to upload the video (.mp4, 720p)
+and its transcript (.srt / .vtt, or a copy-paste of YouTube's "Show transcript"), and make the shorts from those.
+If the search worked, suggest the video Short Taker would have picked (title + link).
+
 ## 1a. With `ANTHROPIC_API_KEY` in `.env`: the CLI does everything
 
 ```bash
