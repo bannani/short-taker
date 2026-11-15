@@ -85,12 +85,12 @@ def face_center(video: Path, start: float, end: float, samples: int = 8) -> floa
         if not ok:
             continue
         h, w = frame.shape[:2]
-        scale = 480 / w
-        small = cv2.resize(frame, (480, int(h * scale)))
+        aw = min(w, 640)  # assez grand pour les visages d'un plan moyen, assez petit pour être rapide
+        small = cv2.resize(frame, (aw, int(h * aw / w)))
         gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-        faces = cascade.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
+        faces = cascade.detectMultiScale(gray, 1.1, 5, minSize=(24, 24))
         if len(faces):
             x, y, fw, fh = max(faces, key=lambda f: f[2] * f[3])
-            xs.append((x + fw / 2) / 480)
+            xs.append((x + fw / 2) / aw)
     cap.release()
     return float(np.median(xs)) if len(xs) >= max(2, samples // 4) else None

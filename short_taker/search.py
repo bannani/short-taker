@@ -62,19 +62,31 @@ def search_api(query: str, max_results: int = 10, license: str = "creativeCommon
     return out
 
 
-def search_ytdlp(query: str, max_results: int = 10) -> list[VideoInfo]:
+CC_FILTER = "EgIwAQ%3D%3D"  # filtre « Creative Commons » de la recherche YouTube
+
+
+def search_ytdlp(query: str, max_results: int = 10, license: str = "any") -> list[VideoInfo]:
+    from urllib.parse import quote_plus
+
     import yt_dlp
 
-    opts = {"quiet": True, "skip_download": True, "extract_flat": "in_playlist"}
+    opts = {"quiet": True, "skip_download": True, "extract_flat": "in_playlist", "playlistend": max_results}
+    if license == "creativeCommon":
+        target = f"https://www.youtube.com/results?search_query={quote_plus(query)}&sp={CC_FILTER}"
+    else:
+        target = f"ytsearch{max_results}:{query}"
     with yt_dlp.YoutubeDL(opts) as ydl:
-        res = ydl.extract_info(f"ytsearch{max_results}:{query}", download=False)
+        res = ydl.extract_info(target, download=False)
     out = []
-    for e in res.get("entries", []) or []:
+    for e in (res.get("entries", []) or [])[:max_results]:
+        if not e.get("id") or e.get("ie_key") not in (None, "Youtube"):
+            continue
         out.append(VideoInfo(
             id=e["id"], title=e.get("title", ""), channel=e.get("channel") or e.get("uploader", ""),
             url=e.get("url") or f"https://www.youtube.com/watch?v={e['id']}",
             duration=float(e.get("duration") or 0), views=int(e.get("view_count") or 0),
             likes=int(e.get("like_count") or 0),
+            license="creativeCommon" if license == "creativeCommon" else "",
         ))
     return out
 
@@ -91,8 +103,8 @@ def search(query: str, max_results: int = 10, license: str = "creativeCommon",
     if os.environ.get("YOUTUBE_API_KEY"):
         videos = search_api(query, pool, license=license)
     else:
-        print("⚠️  Pas de YOUTUBE_API_KEY : recherche via yt-dlp, sans filtre de licence ni likes.")
-        videos = search_ytdlp(query, min(pool, 30))
+        print("⚠️  Pas de YOUTUBE_API_KEY : recherche via yt-dlp (filtre Creative Commons OK, mais pas de likes).")
+        videos = search_ytdlp(query, min(pool, 30), license=license)
     videos = [v for v in videos if (not v.duration or min_duration <= v.duration <= max_duration)
               and v.views >= min_views]
     key = {"popular": lambda v: v.popularity, "views": lambda v: v.views,

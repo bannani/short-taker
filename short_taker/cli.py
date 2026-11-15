@@ -49,7 +49,8 @@ def process(url: str, a) -> list[dict]:
     """Télécharge, « regarde » et découpe une vidéo. Renvoie la liste des shorts produits."""
     work = Path(a.out)
     print(f"\n⬇️  Téléchargement : {url}")
-    video_path, subs, meta = download.download(url, work / "sources", langs=a.langs.split(","))
+    video_path, subs, meta = download.download(url, work / "sources", langs=a.langs.split(","),
+                                                 max_height=getattr(a, "max_height", 1080))
     vdir = work / meta.id
     vdir.mkdir(parents=True, exist_ok=True)
 
@@ -193,6 +194,7 @@ def main() -> None:
                         help="Ne pas faire regarder les images ni analyser l'audio (moins cher)")
         sp.add_argument("--instructions", help="Consigne en plus pour Claude (ex: 'privilégie l'humour')")
         sp.add_argument("--dry-run", action="store_true", help="Analyse seulement, sans découper")
+        sp.add_argument("--max-height", type=int, default=1080, help="Qualité max de la vidéo source (ex: 720)")
         sp.add_argument("-o", "--out", default=os.environ.get("SHORT_TAKER_OUT", "output"))
 
     def sort_args(sp):
