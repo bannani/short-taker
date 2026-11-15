@@ -1,0 +1,42 @@
+name: E2E (YouTube side)
+
+# Partie YouTube réelle (recherche, classement, téléchargement, transcription, énergie audio).
+# Le résultat est publié sur la branche e2e-results pour que l'agent fasse la suite.
+on:
+  push:
+    branches: [e2e]
+
+permissions:
+  contents: write
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      THEME: "entrepreneur interview startup story"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+          grep -v faster-whisper requirements.txt > /tmp/req-ci.txt
+          pip install -q -r /tmp/req-ci.txt
+      - name: Search (popularity, Creative Commons)
+        run: python -m short_taker search "$THEME" -n 10 --min-views 1000 2>&1 | tee /tmp/search.log
+      - name: Run (prepare-only)
+        run: |
+          python -m short_taker run "$THEME" --videos 1 --prepare-only \
+            --min-video 5 --max-video 25 --min-views 1000 --langs en,fr --max-height 480 -o /tmp/output 2>&1 | tee /tmp/run.log
+      - name: Publish results on branch e2e-results
+        if: always()
+        run: |
+          mkdir -p /tmp/res && cd /tmp/res
+          cp /tmp/search.log /tmp/run.log . 2>/dev/null || true
+          [ -d /tmp/output ] && cp -r /tmp/output . || true
+          git init -q -b e2e-results
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git add -A && git commit -qm "E2E results ${GITHUB_RUN_ID}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" e2e-results
