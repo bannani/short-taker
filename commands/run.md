@@ -38,6 +38,8 @@ Then read the newest `output/runs/*.md` and go to step 6.
    {"moments": [{"start": 123.4, "end": 168.9, "title": "…", "hook": "…", "reason": "…", "score": 8, "hashtags": ["#…"], "face_x": 0.45}]}
    ```
    Title, hook and hashtags in the video's language. Hook < 8 words, title < 70 characters.
+   If a clip relies on B-roll (screenshots, slides, illustrations), add `"mode": "blur"` to that moment so the
+   whole frame stays readable; the default smart crop is best for talking heads.
 5. **Cut**: `python -m short_taker.cut_from_json output/<id>` (smart crop follows the face, falls back on `face_x`, then on a blurred background).
 
 ## 6. Check and report

@@ -29,7 +29,7 @@ def main() -> None:
         mo = Moment(m["start"], m["end"], m["title"], m.get("hook", ""), m.get("reason", ""),
                     int(m.get("score", 5)), m.get("hashtags", []), m.get("face_x"))
         out = vdir / f"{i:02d}_{cut.slugify(mo.title)}.mp4"
-        cut.cut(video, mo, segments, out, mode=a.mode, subtitles=not a.no_subs)
+        cut.cut(video, mo, segments, out, mode=m.get("mode", a.mode), subtitles=not a.no_subs)
         print(f"✅ {out}")
 
 

@@ -26,7 +26,7 @@ def download(url: str, out_dir: Path, langs: list[str] | None = None,
         "writesubtitles": True,
         "writeautomaticsub": True,
         "subtitleslangs": [f"{l}.*" for l in langs] + langs,
-        "subtitlesformat": "json3",
+        "subtitlesformat": "json3/vtt/srt/best",
         "quiet": True,
         "noprogress": True,
         "ignoreerrors": False,
@@ -44,14 +44,15 @@ def download(url: str, out_dir: Path, langs: list[str] | None = None,
         video_path = next(p for p in out_dir.glob(f"{vid}.*") if p.suffix in {".mp4", ".mkv", ".webm"})
 
     subs = None
-    for lang in langs:
-        cands = sorted(out_dir.glob(f"{vid}.{lang}*.json3"))
-        if cands:
-            subs = cands[0]
+    exts = ("json3", "vtt", "srt")  # json3 (YouTube, timing au mot) d'abord, puis vtt/srt (autres sites)
+    for lang in langs + ["*"]:
+        for ext in exts:
+            cands = sorted(out_dir.glob(f"{vid}.{lang}*.{ext}"))
+            if cands:
+                subs = cands[0]
+                break
+        if subs:
             break
-    if subs is None:
-        any_subs = sorted(out_dir.glob(f"{vid}.*.json3"))
-        subs = any_subs[0] if any_subs else None
 
     meta = VideoInfo(
         id=vid, title=info.get("title", ""), channel=info.get("channel") or info.get("uploader", ""),
